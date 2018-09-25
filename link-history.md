@@ -89,8 +89,8 @@ to simplify this a bit.
 
 ```sh
 $ ni /mnt/v1/data/wikipedia-history-2018.0923 \
-     SX24 [1p'"7z://{}"' \<\<] \
-          [z\>\$'basename "{}"'] \
+     SX24 [\$'"7z://{}"' \<] \
+          z\>\$'basename "{}"' \
           p'^{$title = $contributor = $time = undef}
             $title       = $1, return () if /<title>([^<]+)/;
             $contributor = $1, return () if /<(?:ip|username)>([^<]+)/;
