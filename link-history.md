@@ -9,7 +9,7 @@ bzip2's. This makes sense given 7z's long lookback window.
 
 ```sh
 $ ni https://dumps.wikimedia.org/enwiki/latest/ \
-     rp's/.*href="([^"]+\.7z)".*/$1/' \
+     p'/href="([^"]+\.7z)"/g' \
      p'"https://dumps.wikimedia.org/enwiki/latest/$_"' \
   | xargs wget -c
 ```
