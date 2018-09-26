@@ -3,6 +3,7 @@ package ni::pl;
 
 use strict;
 use warnings;
+no warnings 'substr';
 
 sub common_prefix_length($$)
 {
