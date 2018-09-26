@@ -1,9 +1,10 @@
-# perl mappers run in this namespace
 package ni::pl;
 
 use strict;
 use warnings;
 no warnings 'substr';
+
+use constant sync_size => 12;
 
 sub common_prefix_length($$)
 {
@@ -21,51 +22,57 @@ sub common_suffix_length($$)
   length $x;
 }
 
-sub sync_offset($$$$)
+sub sync_offset
 {
   # Find the nearest point where we have a substantial amount of text that
   # aligns between the two strings, then return a pair of ($li, $ri) indicating
   # the location at which we can resume skipping equal text. The implication is
   # that a change has occurred between the input and output $li and $ri.
   use bytes;
-  use constant sync_size => 16;
+  use constant none => [];
 
-  my $li = shift;
-  my $ri = shift;
+  my $li   = shift;
+  my $ri   = shift;
+  my $lidx = shift;
+  my $ridx = shift;
 
-  # Search in both directions at once, exiting when either is successful.
-  my ($li_out1, $ri_out1) = ($li - sync_size, -1);
-  my ($li_out2, $ri_out2) = (-1, $ri - sync_size);
-  while ($li_out1 + sync_size      < length $_[0] && $ri_out1 == -1
-           && $ri_out2 + sync_size < length $_[1] && $li_out2 == -1)
+  my $min_l1 = length $_[0];
+  my $min_l2 = length $_[0];
+  my $min_r1 = length $_[1];
+  my $min_r2 = length $_[1];
+  for my $k (grep exists $$ridx{$_}, keys %$lidx)
   {
-    $ri_out1 = index $_[1], substr($_[0], $li_out1 += sync_size, sync_size), $ri;
-    $li_out2 = index $_[0], substr($_[1], $ri_out2 += sync_size, sync_size), $li;
+    ($min_l1) = (grep($_ >  $li && $_ < $min_l1, @{$$lidx{$k}}), $min_l1);
+    ($min_l2) = (grep($_ >= $li && $_ < $min_l2, @{$$lidx{$k}}), $min_l2);
+    ($min_r1) = (grep($_ >= $ri && $_ < $min_r1, @{$$ridx{$k}}), $min_r1);
+    ($min_r2) = (grep($_ >  $ri && $_ < $min_r2, @{$$ridx{$k}}), $min_r2);
   }
 
-  # If no part of the strings align, then everything from here is a diff;
-  # consume the entirety of both arguments.
-  ($li_out1, $ri_out1) = (length $_[0], length $_[1]) if $ri_out1 == -1;
-  ($li_out2, $ri_out2) = (length $_[0], length $_[1]) if $li_out2 == -1;
+  # Now remove up to sync_size from the right ends of the sync point.
+  my ($lo, $ro) = $min_l1 + $min_r1 < $min_l2 + $min_r2
+                ? ($min_l1, $min_r1)
+                : ($min_l2, $min_r2);
+  my $l = common_suffix_length substr($_[0], $lo - sync_size, sync_size),
+                               substr($_[1], $ro - sync_size, sync_size);
+  ($lo - $l, $ro - $l);
+}
 
-  # See which direction yielded smaller deltas. We measure this as the total
-  # amount of skipped stuff.
-  my $skip1 = ($li_out1 - $li) + ($ri_out1 - $ri);
-  my $skip2 = ($li_out2 - $li) + ($ri_out2 - $ri);
-  my $li_out = $skip1 < $skip2 ? $li_out1 : $li_out2;
-  my $ri_out = $skip1 < $skip2 ? $ri_out1 : $ri_out2;
-
-  # Now $li_out and $ri_out are aligned; rewind any common text we've skipped.
-  my $l = common_suffix_length
-    substr($_[0], max($li, $li_out - sync_size), sync_size),
-    substr($_[1], max($ri, $ri_out - sync_size), sync_size);
-  ($li_out - $l, $ri_out - $l);
+sub diff_index($)
+{
+  # Create a substring index we can use to rapidly locate text within a string.
+  my %index;
+  push @{$index{substr $_[0], $_, sync_size} //= []}, $_
+    for 1 .. length($_[0]) - sync_size;
+  \%index;
 }
 
 sub diff($$)
 {
   my @diff;
   my ($li, $ri) = (0, 0);
+  my $lidx = diff_index $_[0];
+  my $ridx = diff_index $_[1];
+
   while ($li < length $_[0] && $ri < length $_[1])
   {
     my $l = common_prefix_length substr($_[0], $li, 256),
@@ -80,9 +87,9 @@ sub diff($$)
       # At this point we have a change between $li and $next_li. Because the
       # text outside this region is shared between the two strings, we can just
       # look at the left string to expand to word boundaries.
-      my ($next_li, $next_ri) = sync_offset $li, $ri, $_[0], $_[1];
-      my ($left_word)  = (substr($_[0], $li - 15,     16) =~ /\w(\w*)$/, "");
-      my ($right_word) = (substr($_[0], $next_li - 1, 16) =~ /^(\w*)\w/, "");
+      my ($next_li, $next_ri) = sync_offset $li, $ri, $lidx, $ridx, $_[0], $_[1];
+      my ($left_word)  = (substr($_[0], $li - 15,     16) =~ /(\w*)\w$/, "");
+      my ($right_word) = (substr($_[0], $next_li - 1, 16) =~ /^\w(\w*)/, "");
 
       $li      -= length $left_word;
       $ri      -= length $left_word;

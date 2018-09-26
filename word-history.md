@@ -77,7 +77,28 @@ $ ni /mnt/v1/data/wikipedia-history-2018.0923 p'"7z://$_"' \<\< \
          deltas map tpe(/\d+/g), map /<timestamp>([^<]+)/, ru {/<\/page>/}; ()'
 ```
 
-Nothing yet; I think we're in good shape.
+Nothing yet; I think we're in good shape. A command to iterate on the diff
+locally:
+
+```sh
+$ ni pRdiff.pl \
+     sr3[/mnt/v1/data/wikipedia-history-2018.0923 p'"7z://$_"' \<r1\< \
+         p'^{$title = $contributor = $time = $text = undef}
+            $title       = $1, $text = "", return () if /<title>([^<]+)/;
+            $contributor = $1, return () if /<(?:ip|username)>([^<]+)/;
+            $time        = $1, return () if /<timestamp>([^<]+)/;
+            if (s/^\s*<text[^>]*>//)
+            {
+              (my $newtext = join"", ru {/<\/text>/}) =~ s/<\/text>.*//;
+              r $title, $contributor, tpe($time =~ /\d+/g),
+                je [diff $text, $newtext];
+              $text = $newtext;
+            }
+            ()']
+
+```
+
+The final command:
 
 ```sh
 $ ni /mnt/v1/data/wikipedia-history-2018.0923 \
