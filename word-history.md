@@ -53,7 +53,31 @@ Our diff algorithm should produce something like this:
 ```
 
 [Here's the code](diff.pl) I came up with. We can ask `ni` to make this
-available to perl mapper code using `pR`.
+available to perl mapper code using `pR`:
+
+```sh
+$ ni pRdiff.pl \
+     1p'r je $_ for diff
+        q{ These divisions are excarbated by a very polemical debate around the names of various types of anarchism and related ideas.  For example, &quot;anarchism&quot; is variously understood as being either socialist or capitalist.  In the United States, &quot;libertarianism&quot; typically does not refer to either anarchism or socialism, while in e.g. Latin America it refers to both.  Finally, the term &quot;anarchy&quot; is frequently used as a perjorative in reference to [[anomy]]. },
+        q{ These divisions are excarbated by a very polemical debate around the names of various types of anarchism and related ideas.  For example, &quot;anarchism&quot; is variously understood as being either socialist or capitalist.  In the United States, &quot;libertarianism&quot; typically does not refer to either anarchism or socialism, while in e.g. Latin America it refers to both.  Finally, the term &quot;anarchy&quot; is frequently used improperly as a perjorative in reference to [[anomie]]. }
+       '
+{"add":"improperly ","at":440,"remove":""}
+{"add":"anomie","at":475,"remove":"anomy"}
+```
+
+One last check before we run the full dataset: are revisions stored in semantic
+order? We can figure this out by looking at the series of timestamps within each
+page.
+
+```sh
+$ ni /mnt/v1/data/wikipedia-history-2018.0923 p'"7z://$_"' \<\< \
+     p'return () unless /<page/;
+       r "out of order" if
+         grep $_ < 0,
+         deltas map tpe(/\d+/g), map /<timestamp>([^<]+)/, ru {/<\/page>/}; ()'
+```
+
+Nothing yet; I think we're in good shape.
 
 ```sh
 $ ni /mnt/v1/data/wikipedia-history-2018.0923 \
@@ -66,9 +90,9 @@ $ ni /mnt/v1/data/wikipedia-history-2018.0923 \
             $time        = $1, return () if /<timestamp>([^<]+)/;
             if (s/^\s*<text[^>]*>//)
             {
-              my $newtext = join"", ru {s/<\/text>$//};
+              (my $newtext = join"", ru {/<\/text>/}) =~ s/<\/text>.*//;
               r $title, $contributor, tpe($time =~ /\d+/g),
-                diff $text, $newtext;
+                je [diff $text, $newtext];
               $text = $newtext;
             }
             ()'
