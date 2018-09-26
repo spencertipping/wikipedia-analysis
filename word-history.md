@@ -81,19 +81,19 @@ Nothing yet; I think we're in good shape.
 
 ```sh
 $ ni /mnt/v1/data/wikipedia-history-2018.0923 \
-     pRdiff.pl \
      SX24 [\$'"7z://{}"' \<] \
-          z\>\$'basename("{}") =~ s/\.7z$//r' \
-          p'^{$title = $contributor = $time = $text = undef}
-            $title       = $1, $text = "", return () if /<title>([^<]+)/;
-            $contributor = $1, return () if /<(?:ip|username)>([^<]+)/;
-            $time        = $1, return () if /<timestamp>([^<]+)/;
-            if (s/^\s*<text[^>]*>//)
-            {
-              (my $newtext = join"", ru {/<\/text>/}) =~ s/<\/text>.*//;
-              r $title, $contributor, tpe($time =~ /\d+/g),
-                je [diff $text, $newtext];
-              $text = $newtext;
-            }
-            ()'
+          z\>\$'"diffs/" . basename("{}") =~ s/\.7z$//r' \
+          [pRdiff.pl \
+           p'^{$title = $contributor = $time = $text = undef}
+             $title       = $1, $text = "", return () if /<title>([^<]+)/;
+             $contributor = $1, return () if /<(?:ip|username)>([^<]+)/;
+             $time        = $1, return () if /<timestamp>([^<]+)/;
+             if (s/^\s*<text[^>]*>//)
+             {
+               (my $newtext = join"", ru {/<\/text>/}) =~ s/<\/text>.*//;
+               r $title, $contributor, tpe($time =~ /\d+/g),
+                 je [diff $text, $newtext];
+               $text = $newtext;
+             }
+             ()']
 ```

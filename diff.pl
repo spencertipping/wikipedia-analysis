@@ -97,6 +97,6 @@ sub diff($$)
   }
 
   push @diff, { at => $li, add => '', remove => substr $_[0], $li } if $li < length $_[0];
-  push @diff, { at => $li, add => substr $_[1], $ri, remove => '' } if $ri < length $_[1];
+  push @diff, { at => $li, remove => '', add => substr $_[1], $ri } if $ri < length $_[1];
   @diff;
 }
