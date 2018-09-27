@@ -230,16 +230,18 @@ $ ni /mnt/v1/data/wikipedia-history-2018.0923 \
      pRtokenize.pl \
      SX24 [\$'"7z://{}"' \<] \
           z\>\$'"word-history/" . basename("{}") =~ s/\.7z$//r' \
-          p'^{$title = $contributor = $time = $last_freqs = undef}
-            $title       = $1, $text = "", return () if /<title>([^<]+)/;
+          p'^{$title = $contributor = $time = undef; $last_freqs = {}}
+            $title       = $1, $last_freqs = {}, return () if /<title>([^<]+)/;
             $contributor = $1, return () if /<(?:ip|username)>([^<]+)/;
             $time        = $1, return () if /<timestamp>([^<]+)/;
             if (s/^\s*<text[^>]*>//)
             {
-              (my $newtext = join"", ru {/<\/text>/}) =~ s/<\/text>.*//;
+              my $new_freqs = freqs tokenize join"", ru {/<\/text>/};
+              my %diffs     = %$new_freqs;
+              $diffs{$_} -= $$last_freqs{$_} for keys %$last_freqs;
               r $title, $contributor, tpe($time =~ /\d+/g),
-                je [diff $text, $newtext];
-              $text = $newtext;
+                map +($_ => $diffs{$_}), grep $diffs{$_}, sort keys %diffs;
+              $last_freqs = $new_freqs;
             }
             ()'
 ```
