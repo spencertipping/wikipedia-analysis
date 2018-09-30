@@ -243,5 +243,5 @@ $ ni /mnt/v1/data/wikipedia-history-2018.0923 \
                 map +($_ => $diffs{$_}), grep $diffs{$_}, sort keys %diffs;
               $last_freqs = $new_freqs;
             }
-            ()'
+            ()' | cat
 ```
